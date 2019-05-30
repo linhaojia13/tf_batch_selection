@@ -171,7 +171,7 @@ def test(model='cnn', num_epochs=50, bs_begin=16, bs_end=16, fac_begin=100, fac_
     loss = -tf.reduce_sum(loss, 1)
     
     if opt_type == 2:
-        train_step = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08).minimize(loss_sum)
+        train_step = tf.train.AdamOptimizer(learning_rate=0.00001, beta1=0.9, beta2=0.999, epsilon=1e-08).minimize(loss_sum)
         opt_name = 'Adam'
     else:
         train_step = tf.train.AdadeltaOptimizer(learning_rate=1.0, rho=0.95, epsilon=1e-06).minimize(loss_sum)
@@ -202,6 +202,7 @@ def test(model='cnn', num_epochs=50, bs_begin=16, bs_end=16, fac_begin=100, fac_
     start_train_time = time.time()
     cur_train_time = time.time()
     saver = tf.train.Saver()
+    count = 0 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         # we iterate over epochs:
@@ -216,15 +217,18 @@ def test(model='cnn', num_epochs=50, bs_begin=16, bs_end=16, fac_begin=100, fac_
             
             if (fac == 1):
                 print('************We are working on normal mode************')
-                batch = mnist.train.next_batch(bs)
-                inputs, targets = batch
-                inputs = inputs.reshape([bs, 28, 28, 1])
-                #train a batch
-                _, loss_all, loss_val, ac = sess.run([train_step, loss, loss_sum, accuracy], 
-                                   feed_dict = {x_placeholder:inputs, y_placeholder:targets})
+                for i in range(860):
+                    batch = mnist.train.next_batch(bs)
+                    inputs, targets = batch
+                    inputs = inputs.reshape([bs, 28, 28, 1])
+                    #train a batch
+                    _, loss_all, loss_val, ac = sess.run([train_step, loss, loss_sum, accuracy], 
+                                       feed_dict = {x_placeholder:inputs, y_placeholder:targets})
+                    count += len(targets)
                 print("Epoch:", '%04d' % (epoch), "cost=", "{:.9f}".format(loss_val), "{:.6f}".format(ac))
                 cur_train_time = time.time()
                 print("By now, we use time:", cur_train_time - start_train_time)
+                print('By now, we use examples:', count)
             else:
                 print('************We are working on batch_selection mode************')
                 mult = math.exp(math.log(fac)/ntraining)
@@ -264,24 +268,40 @@ def test(model='cnn', num_epochs=50, bs_begin=16, bs_end=16, fac_begin=100, fac_
                     for idx in indexes:
                         idxs.append(bfs[idx][1])
                         #print('bfs[idx][1]: ', bfs[idx][1])
-                    #print('idxs: ', idxs)
+                    #print('idxs length: ', len(idxs))
                     idxs = np.array(idxs)
                     idxs = idxs.astype(np.int8)
                     batch = X_train[idxs], Y_train[idxs]
                     inputs, targets = batch
+                    #train a batch
+                    _, loss_all, loss_val, ac = sess.run([train_step, loss, loss_sum, accuracy], 
+                                       feed_dict = {x_placeholder:inputs, y_placeholder:targets})
+                    count += len(targets)
+                    cur_train_time = time.time()
+                    i = 0
+                    for idx in indexes:
+                        #print('loss_all', loss_all[i])
+                        bfs[idx][0] = loss_all[i]
+                        i += 1
                     
-                #train a batch
-                _, loss_all, loss_val, ac = sess.run([train_step, loss, loss_sum, accuracy], 
-                                   feed_dict = {x_placeholder:inputs, y_placeholder:targets})
-                cur_train_time = time.time()
-                i = 0
-                for idx in indexes:
-                    #print('loss_all', loss_all[i])
-                    bfs[idx][0] = loss_all[i]
-                    i += 1
-    
                 print("Epoch:", '%04d' % (epoch), "cost=", "{:.9f}".format(loss_val), "{:.6f}".format(ac))
                 print("By now, we use time:", cur_train_time - start_train_time)
+                print('By now, we use examples:', count)
+                    
+#                #train a batch
+#                _, loss_all, loss_val, ac = sess.run([train_step, loss, loss_sum, accuracy], 
+#                                   feed_dict = {x_placeholder:inputs, y_placeholder:targets})
+#                count += len(targets)
+#                cur_train_time = time.time()
+#                i = 0
+#                for idx in indexes:
+#                    #print('loss_all', loss_all[i])
+#                    bfs[idx][0] = loss_all[i]
+#                    i += 1
+#    
+#                print("Epoch:", '%04d' % (epoch), "cost=", "{:.9f}".format(loss_val), "{:.6f}".format(ac))
+#                print("By now, we use time:", cur_train_time - start_train_time)
+#                print('By now, we use examples:', count)
         saver.save(sess, 'model/model.ckpt')
         print('model has saved!')
         
